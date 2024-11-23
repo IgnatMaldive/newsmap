@@ -1,70 +1,53 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { fetchNews } from './actions'
-import type { NewsArticle, NewsMarker } from './types'
-import { AlertCircle, Newspaper } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import L from 'leaflet'
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Skeleton } from '../components/ui/skeleton';
+import { fetchNews } from './actions';
+import type { NewsArticle, NewsMarker } from './types';
+import { AlertCircle, Newspaper } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 
-const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
-  { ssr: false, loading: () => <Skeleton className="w-full h-[600px]" /> }
-)
-const TileLayer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.TileLayer),
-  { ssr: false }
-)
-const Marker = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Marker),
-  { ssr: false }
-)
-const Popup = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Popup),
-  { ssr: false }
-)
+const MapComponent = dynamic(() => import('./MapComponent'), { ssr: false });
 
 const SECTION_COORDINATES: Record<string, [number, number]> = {
   world: [0, 0],
   uk: [55.3781, -3.4360],
   us: [37.0902, -95.7129],
   australia: [-25.2744, 133.7751],
-}
+};
 
 export default function NewsMap() {
-  const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedSection, setSelectedSection] = useState<string>('world')
-  
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSection, setSelectedSection] = useState<string>('world');
+
   useEffect(() => {
     const loadNews = async () => {
-      setLoading(true)
-      setError(null)
-      const result = await fetchNews(selectedSection)
+      setLoading(true);
+      setError(null);
+      const result = await fetchNews(selectedSection);
       if (result.success) {
-        setArticles(result.articles)
+        setArticles(result.articles || []); // Ensure articles is an array
       } else {
-        setError(result.error || 'Failed to fetch news')
+        setError(result.error || 'Failed to fetch news');
       }
-      setLoading(false)
-    }
-    
-    loadNews()
-  }, [selectedSection])
+      setLoading(false);
+    };
+    loadNews();
+  }, [selectedSection]);
 
   const markers: NewsMarker[] = articles
-    .filter(article => article.location)
+    .filter((article) => article.location)
     .map((article) => ({
       id: article.id,
       lat: article.location![0],
       lng: article.location![1],
       article,
-    }))
+    }));
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -78,7 +61,7 @@ export default function NewsMap() {
             {Object.keys(SECTION_COORDINATES).map((section) => (
               <Button
                 key={section}
-                variant={selectedSection === section ? "default" : "outline"}
+                variant={selectedSection === section ? 'default' : 'outline'}
                 onClick={() => setSelectedSection(section)}
               >
                 {section.toUpperCase()}
@@ -102,49 +85,11 @@ export default function NewsMap() {
             {loading ? (
               <Skeleton className="w-full h-full" />
             ) : (
-              <MapContainer
-                center={SECTION_COORDINATES[selectedSection]}
-                zoom={selectedSection === 'world' ? 2 : 4}
-                className="w-full h-[600px]"
-                key={selectedSection}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                {markers.map((marker) => (
-                  <Marker 
-                    key={marker.id} 
-                    position={[marker.lat, marker.lng]}
-                    icon={new L.Icon({
-                      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-                      iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-                      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                      iconSize: [25, 41],
-                      iconAnchor: [12, 41],
-                      popupAnchor: [1, -34],
-                      shadowSize: [41, 41]
-                    })}
-                  >
-                    <Popup>
-                      <div className="max-w-xs">
-                        <h3 className="font-semibold">{marker.article.fields.headline}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {marker.article.fields.trailText}
-                        </p>
-                        <a
-                          href={marker.article.webUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline mt-2 inline-block"
-                        >
-                          Read more
-                        </a>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
+              <MapComponent
+                markers={markers}
+                selectedSection={selectedSection}
+                coordinates={SECTION_COORDINATES[selectedSection]}
+              />
             )}
           </CardContent>
         </Card>
@@ -198,6 +143,5 @@ export default function NewsMap() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
-
